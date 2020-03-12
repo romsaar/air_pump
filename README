@@ -1,5 +1,10 @@
 2020-03-12
 ----------
+    How to add ros serial lib
+    ------------------
+        First add serial roslib to arduino environment
+            http://wiki.ros.org/rosserial_arduino/Tutorials/Arduino%20IDE%20Setup
+
     How to work with command line arduino-cli
     -----------------------------------------
         1. Install arduino-cli 
@@ -8,6 +13,25 @@
         3. Compile
             https://arduino.github.io/arduino-cli/commands/arduino-cli_compile/
 
-            $ arduino-cli compile -b arduino:avr:mega air_pump
+            $ arduino-cli compile -b arduino:avr:mega ../air_pump
         4. Upload
-            $ arduino-cli upload -b arduino:avr:mega air_pump -p /dev/ttyUSB0
+            $ arduino-cli upload -b arduino:avr:mega ../air_pump -p /dev/ttyUSB0
+        5. Compile and Upload
+            $ arduino-cli compile -b arduino:avr:mega -u -p /dev/ttyUSB0 ../air_pump -v
+    How to work with rosserial_arduino
+    -----------------------------------
+        1. baudrate in python client 
+            https://answers.ros.org/question/206972/baud-rate-parameter-in-rosserial_python-arduino/
+
+        2. Terminal 1:
+            $ roscore 
+        3. Terminal 2:
+            $ rosrun rosserial_python serial_node.py /dev/ttyUSB0 
+            [INFO] [1584019417.780561]: ROS Serial Python Node
+            [INFO] [1584019417.788995]: Connecting to /dev/ttyUSB0 at 57600 baud
+            [INFO] [1584019420.025811]: Requesting topics...
+            [INFO] [1584019420.058695]: Note: publish buffer size is 512 bytes
+            [INFO] [1584019420.060620]: Setup publisher on chatter [std_msgs/String]
+        3. Terminal 3:
+            If the code was compiled with topic chatter
+                $ rostopic echo chatter
