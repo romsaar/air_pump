@@ -1,0 +1,13 @@
+2020-03-12
+----------
+    How to work with command line arduino-cli
+    -----------------------------------------
+        1. Install arduino-cli 
+            https://itp.nyu.edu/physcomp/resources/using-the-arduino-command-line-interface/
+        2. $ arduino-cli core install arduino:avr 
+        3. Compile
+            https://arduino.github.io/arduino-cli/commands/arduino-cli_compile/
+
+            $ arduino-cli compile -b arduino:avr:mega air_pump
+        4. Upload
+            $ arduino-cli upload -b arduino:avr:mega air_pump -p /dev/ttyUSB0
