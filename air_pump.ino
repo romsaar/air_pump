@@ -8,11 +8,7 @@
  */
 #include <ros.h>
 #include <std_msgs/String.h>
-
-ros::NodeHandle  nh;
-
-std_msgs::String str_msg;
-ros::Publisher chatter("chatter", &str_msg);
+#include <std_msgs/Float32.h>
 
 int sensorPin = A1;    // variable to store the value coming from the sensorint sensorPin = A0;  
 double sensorValue = 0;  // 
@@ -24,9 +20,24 @@ double sum = 0.0;
 int ctr = 50;
 bool is_pump_active = false;
 
+/********************************
+ * ROS DEFINITIONS
+ * ******************************/
 #define ISROS
+//#define ROSSTRING
+#define ROSFLOAT
 #ifdef ISROS
+    #define TOPICNAME "chatter"
     #define BAUDRATE 57600
+    ros::NodeHandle  nh;
+    #ifdef ROSSTRING
+        std_msgs::String topic_msg;
+    #endif
+    #ifdef ROSFLOAT
+        std_msgs::Float32 topic_msg;
+    #endif
+    
+    ros::Publisher chatter(TOPICNAME, &topic_msg);
 #else
     #define BAUDRATE 115200
 #endif
@@ -75,11 +86,15 @@ void loop()
     /*
      * ROS publish the result
      */
-    static char tmp[256];
-    String value = String(current_pressure);
 #ifdef ISROS
-    str_msg.data = value.c_str();
-    chatter.publish( &str_msg );
+    #ifdef ROSSTRING
+        String value = String(current_pressure);
+        topic_msg.data = value.c_str();
+    #endif
+    #ifdef ROSFLOAT
+        topic_msg.data = current_pressure;
+    #endif
+    chatter.publish( &topic_msg );
     nh.spinOnce(); 
 #else
     Serial.println(value);

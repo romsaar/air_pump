@@ -1,5 +1,8 @@
 2020-03-12
 ----------
+    ROS Tutorials
+    -------------
+        http://wiki.ros.org/ROS/Tutorials
     How to add ros serial lib
     ------------------
         First add serial roslib to arduino environment
@@ -33,5 +36,7 @@
             [INFO] [1584019420.058695]: Note: publish buffer size is 512 bytes
             [INFO] [1584019420.060620]: Setup publisher on chatter [std_msgs/String]
         3. Terminal 3:
-            If the code was compiled with topic chatter
+            1. To echo the data to terminal:
                 $ rostopic echo chatter
+            2. To plot the data:
+                $ rqt_plot
