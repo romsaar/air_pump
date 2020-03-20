@@ -7,8 +7,12 @@
  * ROS include
  */
 #include <ros.h>
+
 #include <std_msgs/String.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/MultiArrayDimension.h>
+#include <std_msgs/Float32MultiArray.h>
+//#include <vector>
 
 int sensorPin = A1;    // variable to store the value coming from the sensorint sensorPin = A0;  
 double sensorValue = 0;  // 
@@ -25,7 +29,8 @@ bool is_pump_active = false;
  * ******************************/
 #define ISROS
 //#define ROSSTRING
-#define ROSFLOAT
+//#define ROSFLOAT
+#define ROSARRAY
 #ifdef ISROS
     #define TOPICNAME "chatter"
     #define BAUDRATE 57600
@@ -35,6 +40,9 @@ bool is_pump_active = false;
     #endif
     #ifdef ROSFLOAT
         std_msgs::Float32 topic_msg;
+    #endif
+     #ifdef ROSARRAY // https://answers.ros.org/question/226726/push-vector-into-multiarray-message-and-publish-it/
+        std_msgs::Float32MultiArray topic_msg;
     #endif
     
     ros::Publisher chatter(TOPICNAME, &topic_msg);
@@ -94,6 +102,23 @@ void loop()
     #ifdef ROSFLOAT
         topic_msg.data = current_pressure;
     #endif
+    #ifdef ROSARRAY
+        static float vec[3];
+        vec[0]=1.0;//x
+        vec[1]=1.1;//y 
+        vec[2]=1.2;//alpha
+        std_msgs::MultiArrayDimension dim;
+        dim.label="xyalpha";
+        dim.size=3;
+        dim.stride=3;
+
+        topic_msg.layout.dim=&dim;
+        topic_msg.layout.dim_length=1;
+        topic_msg.data_length=3;
+        // copy in the data
+        topic_msg.data=&vec[0];
+    #endif
+
     chatter.publish( &topic_msg );
     nh.spinOnce(); 
 #else
