@@ -12,11 +12,13 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/MultiArrayDimension.h>
 #include <std_msgs/Float32MultiArray.h>
+#include <geometry_msgs/Twist.h>
 //#include <vector>
 
 int sensorPin = A1;    // variable to store the value coming from the sensorint sensorPin = A0;  
 double sensorValue = 0;  // 
 int pump = 3; // Arduino PWM output pin 3; connect to IBT-2 pin 1 (RPWM)
+int led_pin=13;
 double required_pwm = 180; // duty-cycle to PWM pump
 double required_pressure = 45; // set the staining tank pressure
 double current_pressure = 0; //mBar
@@ -45,10 +47,39 @@ bool is_pump_active = false;
         std_msgs::Float32MultiArray topic_msg;
     #endif
     
+    void commandVelocityCallback(const geometry_msgs::Twist& cmd_vel_msg);
+    ros::Subscriber<geometry_msgs::Twist> cmd_vel_sub("cmd_vel", commandVelocityCallback);
     ros::Publisher chatter(TOPICNAME, &topic_msg);
 #else
     #define BAUDRATE 115200
 #endif
+/*******************************************************************************
+* Callback function for cmd_vel msg
+*******************************************************************************/
+void commandVelocityCallback(const geometry_msgs::Twist& cmd_vel_msg)
+{
+#ifdef ISROS
+    if (cmd_vel_msg.linear.x<0.5)
+    {
+        digitalWrite(led_pin,LOW);
+        publish_chatter(0);
+    }
+    else
+    {
+        digitalWrite(led_pin,HIGH);
+        publish_chatter(5);
+       
+    }
+#endif
+#if 0
+  //goal_velocity_from_cmd[LINEAR]  = cmd_vel_msg.linear.x;
+  goal_velocity_from_cmd[LINEAR]  = -cmd_vel_msg.linear.x;    // RAN (11-05-19) - temporary fix to manual controller !!!!
+  goal_velocity_from_cmd[ANGULAR] = cmd_vel_msg.angular.z;
+
+  goal_velocity_from_cmd[LINEAR]  = constrain(goal_velocity_from_cmd[LINEAR],  MIN_LINEAR_VELOCITY, MAX_LINEAR_VELOCITY);
+  goal_velocity_from_cmd[ANGULAR] = constrain(goal_velocity_from_cmd[ANGULAR], MIN_ANGULAR_VELOCITY, MAX_ANGULAR_VELOCITY);
+#endif
+}
 /***********************
  * setup
  * *********************/
@@ -56,6 +87,8 @@ void setup()
 {
     pinMode(sensorPin, INPUT); // set sensor pin at input
     pinMode(pump, OUTPUT); // set pump pin at output
+    pinMode(led_pin,OUTPUT); 
+
     Serial.begin(BAUDRATE);
     TCCR2B=(TCCR2B&0xF8) | 1;
     /*
@@ -64,9 +97,45 @@ void setup()
 #ifdef ISROS
     nh.initNode();
     nh.advertise(chatter);
+    nh.subscribe(cmd_vel_sub);
 #endif
 
 }
+/*********************
+ * publish chatter topic
+ * ******************/
+void publish_chatter(int pinlevel)
+{
+#ifdef ISROS
+    #ifdef ROSSTRING
+        String value = String(current_pressure);
+        topic_msg.data = value.c_str();
+    #endif
+    #ifdef ROSFLOAT
+        topic_msg.data = current_pressure;
+    #endif
+    #ifdef ROSARRAY
+        static float vec[3];
+        vec[0]=pinlevel;//x
+        vec[1]=1.1;//y 
+        vec[2]=1.2;//alpha
+        std_msgs::MultiArrayDimension dim;
+        dim.label="xyalpha";
+        dim.size=3;
+        dim.stride=3;
+
+        topic_msg.layout.dim=&dim;
+        topic_msg.layout.dim_length=1;
+        topic_msg.data_length=3;
+        // copy in the data
+        topic_msg.data=&vec[0];
+    #endif
+
+    chatter.publish( &topic_msg );
+#else
+    Serial.println(value);
+#endif
+ }
 /*********************
  * loop
  * *******************/ 
@@ -95,31 +164,7 @@ void loop()
      * ROS publish the result
      */
 #ifdef ISROS
-    #ifdef ROSSTRING
-        String value = String(current_pressure);
-        topic_msg.data = value.c_str();
-    #endif
-    #ifdef ROSFLOAT
-        topic_msg.data = current_pressure;
-    #endif
-    #ifdef ROSARRAY
-        static float vec[3];
-        vec[0]=1.0;//x
-        vec[1]=1.1;//y 
-        vec[2]=1.2;//alpha
-        std_msgs::MultiArrayDimension dim;
-        dim.label="xyalpha";
-        dim.size=3;
-        dim.stride=3;
-
-        topic_msg.layout.dim=&dim;
-        topic_msg.layout.dim_length=1;
-        topic_msg.data_length=3;
-        // copy in the data
-        topic_msg.data=&vec[0];
-    #endif
-
-    chatter.publish( &topic_msg );
+    //publish_chatter();
     nh.spinOnce(); 
 #else
     Serial.println(value);
@@ -149,4 +194,20 @@ void loop()
     Serial.println(is_pump_active);
 #endif
     delay(1);
+}
+/***********************************
+ * START command 
+ * *********************************/
+int start()
+{
+    int ret=0;
+    return (ret);
+}
+/***********************************
+ * STOP command 
+ * *********************************/
+int stop()
+{
+    int ret=0;
+    return (ret);
 }
