@@ -5,45 +5,62 @@
 ###################################################################
 display_usage() { 
 
-    echo "Usage: ./launch.sh [OPTION ...]" 
-    echo "Example: ./launch.sh -m 0" 
+    echo "Usage: ./build.sh [OPTION ...]" 
+    echo "Example: ./build.sh -c 1 -u 1" 
 	echo "Options:"
-    echo "\t-m MODE\tMode of initialization 0,1" 
-    echo "\t\t0 - Run roscore" 
-    echo "\t\t1 - Don't run roscore" 
+    echo "\t-c FLAG\tCompile [0,1]" 
+    echo "\t\t0 - Compile" 
+    echo "\t\t1 - Don't compile" 
+    echo "\t-u FLAG\tUpload [0,1]" 
+    echo "\t\t0 - Upload" 
+    echo "\t\t1 - Don't upload" 
 }
 if [  $# -le 0 ] 
 	then 
 		display_usage
 		exit 1
 	fi
-while getopts ":hm:" opt; do
+while getopts ":hc:u:" opt; do
   case ${opt} in
     h ) # process option a
 		display_usage
       ;;
-    m ) # process option m
-        mode=${OPTARG}
+    c ) # process option m
+        compileflag=${OPTARG}
+      ;;
+    u ) # process option m
+        uploadflag=${OPTARG}
       ;;
   esac
 done 
-if [ -z ${mode} ]
+if [ -z ${compileflag} ]
 	then
-		echo "Error!!! mode  was not set"
+		echo "Error!!! compile flag was not set"
 		display_usage
         exit
 	fi
-##################
-# IP settings
-##################
-export ROS_MASTER_URI=http://10.0.0.6:11311
-export ROS_HOSTNAME=10.0.0.16
-export ROS_IP=10.0.0.16
+if [ -z ${uploadflag} ]
+	then
+		echo "Error!!! upload flag was not set"
+		display_usage
+        exit
+	fi
+echo "compileflag:" ${compileflag}
+echo "uploadlag:" ${uploadflag}
 #common practice
 #https://sookocheff.com/post/bash/parsing-bash-script-arguments-with-shopts/ 
 shift $((OPTIND -1))
-if [ "${mode}" = "0" ] ; then
-    roscore &  rosrun rosserial_python serial_node.py /dev/ttyUSB0
+if [ "${compileflag}" = "1" ] && [ "${uploadflag}" = "1" ] ; then
+        echo "compiling and uploading..."
+        arduino-cli compile -b arduino:avr:mega -u -p /dev/ttyUSB0 ../air_pump -v
 else
-    rosrun rosserial_python serial_node.py /dev/ttyUSB0
+    if [ "${compileflag}" = "1" ] ; then
+        echo "compiling..."
+        arduino-cli compile -b arduino:avr:mega ../air_pump -v
+    else
+        if [ "${uploadflag}" = "1" ] ; then
+            echo "uploading..."
+            arduino-cli upload -b arduino:avr:mega ../air_pump -p /dev/ttyUSB0 -v
+        fi
+    fi
 fi

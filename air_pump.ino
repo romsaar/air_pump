@@ -3,6 +3,7 @@
 
 // air pressure sensor part id MPX5050GP/1
 //
+#include <ArduinoJson.h>
 /*
  * ROS include
  */
@@ -21,20 +22,27 @@ int pump = 3; // Arduino PWM output pin 3; connect to IBT-2 pin 1 (RPWM)
 int led_pin=13;
 double required_pwm = 180; // duty-cycle to PWM pump
 double required_pressure = 45; // set the staining tank pressure
-double current_pressure = 0; //mBar
+double current_pressure = 1.1; //mBar
 double sum = 0.0;
 int ctr = 50;
 bool is_pump_active = false;
 
 /********************************
+ * DB
+ * ******************************/
+//StaticJsonDocument<200> jsondb;
+DynamicJsonDocument jsondb(1024);
+/********************************
  * ROS DEFINITIONS
  * ******************************/
+
 #define ISROS
-//#define ROSSTRING
+#define ROSSTRING
 //#define ROSFLOAT
-#define ROSARRAY
+//#define ROSARRAY
 #ifdef ISROS
-    #define TOPICNAME "chatter"
+    #define TOPICNAMEPUB "rdconfigpub"
+    #define TOPICNAMESUB "rdconfigsub"
     #define BAUDRATE 57600
     ros::NodeHandle  nh;
     #ifdef ROSSTRING
@@ -48,11 +56,86 @@ bool is_pump_active = false;
     #endif
     
     void commandVelocityCallback(const geometry_msgs::Twist& cmd_vel_msg);
-    ros::Subscriber<geometry_msgs::Twist> cmd_vel_sub("cmd_vel", commandVelocityCallback);
-    ros::Publisher chatter(TOPICNAME, &topic_msg);
+    void rdconfigsub_callback(const std_msgs::String& str);
+    //ros::Subscriber<geometry_msgs::Twist> cmd_vel_sub("cmd_vel", commandVelocityCallback);
+    ros::Publisher chatter(TOPICNAMEPUB, &topic_msg);
+    ros::Subscriber<std_msgs::String> rdconfigsub("rdconfigsub", rdconfigsub_callback);
 #else
     #define BAUDRATE 115200
 #endif
+/********************************************************
+ * myprintf
+ * ******************************************************/
+void myprintf(const char * fmt, const char* fn, ...)
+{
+    char chbuf[1024];
+    #if 1
+    va_list args;
+    strncpy(chbuf, fn, 1024);  
+    strcat(chbuf, ":");  
+    va_start(args, fmt);
+    //TODO - use flash and not RAM for string
+    vsnprintf(chbuf+strlen(chbuf), sizeof(chbuf)-strlen(chbuf), fmt, args);
+    va_end(args); 
+    #endif
+    nh.loginfo(chbuf); 
+    //Serial.printf(chbuf);
+}
+
+/******************************************************************************
+ * Callback for rdconfigsub topic
+ * ****************************************************************************/
+void rdconfigsub_callback(const std_msgs::String& str)
+{
+    //publish_chatter(0);
+
+    const char* fn="rdconfig_callback()";
+#define DEBUGROS    
+#ifdef DEBUGROS    
+    myprintf("str:%s", fn, str.data);
+    //char dstr[1024];
+    //sprintf(dstr, "%s:str:%s", fn, str.data);
+    //nh.loginfo(dstr); 
+#endif
+    StaticJsonDocument<200> doc;
+    String data=String(str.data);
+    myprintf("data:%s", fn, data.c_str());
+    DeserializationError error=deserializeJson(doc, data.c_str(), 200);
+// Test if parsing succeeds.
+    if (error) {
+        myprintf("deserializeJson() failed: error:%s", fn, error.c_str());
+        return;
+    }
+   
+    JsonObject root = doc.as<JsonObject>();
+    if (root.containsKey("workmode")){
+        char workmode[256];
+        sprintf(workmode, root["workmode"].as<String>().c_str());
+        jsondb.remove("workmode");
+        jsondb["workmode"]=String(workmode); 
+        char output[1024];
+        serializeJson(jsondb, output, sizeof(output));
+        myprintf("contains workmode:%s", fn, workmode);
+        myprintf("output:%s", fn, output);
+    }
+    else
+    {
+        myprintf("Does not contain workmode", fn);
+    }
+
+    if (root.containsKey("workstate")){
+        jsondb["workstate"]=root["workstate"];    
+        myprintf("contains workstate", fn);
+    }
+    else
+    {
+        myprintf("Does not contain workstate", fn);
+    }
+
+    //DEBUG by ROS
+    publish_config();
+
+}
 /*******************************************************************************
 * Callback function for cmd_vel msg
 *******************************************************************************/
@@ -85,6 +168,9 @@ void commandVelocityCallback(const geometry_msgs::Twist& cmd_vel_msg)
  * *********************/
 void setup()
 {
+    jsondb["workmode"]="verylongstring";
+    jsondb["workstate"]="verylongstring";
+
     pinMode(sensorPin, INPUT); // set sensor pin at input
     pinMode(pump, OUTPUT); // set pump pin at output
     pinMode(led_pin,OUTPUT); 
@@ -97,18 +183,60 @@ void setup()
 #ifdef ISROS
     nh.initNode();
     nh.advertise(chatter);
-    nh.subscribe(cmd_vel_sub);
+    //nh.subscribe(cmd_vel_sub);
+    nh.subscribe(rdconfigsub);
 #endif
 
 }
 /*********************
+ * publish rdconfigpub
+ * ******************/
+void publish_config()
+{
+    const char* fn="publish_config()";
+#ifdef ISROS
+    #ifdef ROSSTRING
+        //String value = String(current_pressure);
+        String value; 
+        serializeJson(jsondb, value);
+        //value="{configuration:'CLEAN'}";
+        topic_msg.data = value.c_str();
+    #endif
+    #ifdef ROSFLOAT
+        topic_msg.data = current_pressure;
+    #endif
+    #ifdef ROSARRAY
+        static float vec[3];
+        vec[0]=pinlevel;//x
+        vec[1]=1.1;//y 
+        vec[2]=1.2;//alpha
+        std_msgs::MultiArrayDimension dim;
+        dim.label="xyalpha";
+        dim.size=3;
+        dim.stride=3;
+
+        topic_msg.layout.dim=&dim;
+        topic_msg.layout.dim_length=1;
+        topic_msg.data_length=3;
+        // copy in the data
+        topic_msg.data=&vec[0];
+    #endif
+    myprintf("%s", fn, topic_msg.data);
+ 
+    chatter.publish( &topic_msg );
+#else
+    Serial.println(value);
+#endif
+ }/*********************
  * publish chatter topic
  * ******************/
 void publish_chatter(int pinlevel)
 {
 #ifdef ISROS
     #ifdef ROSSTRING
-        String value = String(current_pressure);
+        //String value = String(current_pressure);
+        String value; 
+        value="{configuration:'CLEAN'}";
         topic_msg.data = value.c_str();
     #endif
     #ifdef ROSFLOAT
