@@ -109,14 +109,7 @@ void rdconfigsub_callback(const std_msgs::String& str)
    
     JsonObject root = doc.as<JsonObject>();
     if (root.containsKey("workmode")){
-        char workmode[256];
-        sprintf(workmode, root["workmode"].as<String>().c_str());
-        jsondb.remove("workmode");
-        jsondb["workmode"]=String(workmode); 
-        char output[1024];
-        serializeJson(jsondb, output, sizeof(output));
-        myprintf("contains workmode:%s", fn, workmode);
-        myprintf("output:%s", fn, output);
+        jsondb["workmode"]=root["workmode"].as<String>();
     }
     else
     {
@@ -124,14 +117,16 @@ void rdconfigsub_callback(const std_msgs::String& str)
     }
 
     if (root.containsKey("workstate")){
-        jsondb["workstate"]=root["workstate"];    
-        myprintf("contains workstate", fn);
+        jsondb["workstate"]=root["workstate"].as<String>();
     }
     else
     {
         myprintf("Does not contain workstate", fn);
     }
+    char output[1024];
+    serializeJson(jsondb, output, sizeof(output));
 
+    myprintf("output:%s", fn, output);
     //DEBUG by ROS
     publish_config();
 
