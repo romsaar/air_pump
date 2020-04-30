@@ -123,6 +123,12 @@ void rdconfigsub_callback(const std_msgs::String& str)
     {
         myprintf("Does not contain workstate", fn);
     }
+    if (jsondb["workstate"]=="active"){
+        digitalWrite(led_pin,HIGH);
+    }
+    else{
+        digitalWrite(led_pin,LOW);
+    }
     char output[1024];
     serializeJson(jsondb, output, sizeof(output));
 
